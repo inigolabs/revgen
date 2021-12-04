@@ -1,11 +1,9 @@
-// +build ignore
-
 package main
 
 import (
 	"os"
 
-	"github.com/inigolabs/revgen"
+	revgen "github.com/inigolabs/revgen/pkg"
 )
 
 func main() {
