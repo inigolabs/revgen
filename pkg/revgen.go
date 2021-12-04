@@ -2,6 +2,7 @@ package revgen
 
 import (
 	"crypto/md5"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -64,11 +65,10 @@ func Generate(args []string) {
 	}
 
 	configFile, config := g.getConfig()
-	currHash := g.getCurrentHash(config)
 	sumFile, sum := g.getSum()
-
-	if currHash == "" {
-		fmt.Printf("%s:%s : missing dependencies in .revgen.yml\n", g.genFilePath, g.genCmd)
+	currHash, err := g.getCurrentHash(config)
+	if err != nil {
+		fmt.Printf("%s:%s : %s\n", g.genFilePath, g.genCmd, err)
 		err := runGen(g.genCmd, filepath.Join(g.rootPath, g.genDirPath))
 		check(err)
 		sum.Hash = currHash
@@ -141,33 +141,37 @@ func (g *gen) getSum() (*SumFile, *SumConfig) {
 	return &sumFile, sumConfig
 }
 
-func (g *gen) getCurrentHash(config *GenConfig) string {
+func (g *gen) getCurrentHash(config *GenConfig) (string, error) {
 	if len(config.GenDeps) == 0 {
-		return ""
+		return "", errors.New("missing deps")
 	}
 
 	var files []string
-	for _, deps := range config.GenDeps {
-		matches, err := filepath.Glob(deps)
+	for _, dep := range config.GenDeps {
+		matches, err := filepath.Glob(filepath.Join(g.rootPath, dep))
 		check(err)
 		files = append(files, matches...)
 	}
 
+	if len(files) == 0 {
+		return "", errors.New("empty deps")
+	}
+
 	hash := md5.New()
 	for _, filename := range files {
-		reader, err := fileReader(filepath.Join(g.rootPath, filename))
+		reader, err := fileReader(filename)
 		check(err)
 		_, err = io.Copy(hash, reader)
 		check(err)
 	}
-	return fmt.Sprintf("%x", hash.Sum(nil))
+	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
 func pathRepoRoot() string {
-	// TODO - get go root dir without using git and remove + "/go" hardcoding
-	out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
+	out, err := exec.Command("go", "list", "-f", "'{{.Root}}'").Output()
 	check(err)
-	return strings.TrimSpace(string(out)) + "/go"
+	unqouted := string(out[1 : len(out)-2])
+	return unqouted
 }
 
 func pathGenFile(rootPath string) string {
