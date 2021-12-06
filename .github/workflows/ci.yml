@@ -1,0 +1,30 @@
+name: golang build
+
+on: pull_request
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.16
+
+    - name: Build
+      working-directory: ./
+      run: go build -v ./...
+
+    - name: Test
+      working-directory: ./
+      run: go test -race -coverprofile=./coverage.txt -covermode=atomic ./...
+    
+    #- name: Upload coverage
+    #  uses: codecov/codecov-action@v2
+    #  with:
+    #    files: ./coverage.txt
+
