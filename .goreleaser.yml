@@ -24,3 +24,13 @@ archives:
     format_overrides:
     - goos: windows
       format: zip
+brews:
+  - name: revgen
+    tap:
+      owner: inigolabs
+      name: homebrew-tap
+    homepage: https://github.com/inigolabs/revgen
+    description: Only run go:generate when code changes
+    install: |
+      bin.install "revgen"
+    license: "MIT"
