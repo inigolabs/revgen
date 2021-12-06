@@ -1,4 +1,4 @@
-name: golang build
+name: Build
 
 on: pull_request
 
