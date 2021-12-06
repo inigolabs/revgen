@@ -1,7 +1,7 @@
 githubRepoOwner: inigolabs
 githubRepoName: revgen
 githubHost: github.com
-requireChecks: false
+requireChecks: true
 requireApproval: false
 githubRemote: origin
 githubBranch: main
