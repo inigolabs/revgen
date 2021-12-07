@@ -4,7 +4,7 @@ before:
   hooks:
     - go mod tidy
 builds:
-  - main: ./cmd
+  - main: ./
     id: revgen
     binary: revgen
     goos:
