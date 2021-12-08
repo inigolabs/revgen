@@ -65,6 +65,11 @@ VERSION: {{.Version}}
 				Action: revgen.Update,
 			},
 			{
+				Name:   "check",
+				Usage:  "Check that all hashes match with gen file deps",
+				Action: revgen.Check,
+			},
+			{
 				Name:  "version",
 				Usage: "Show version info",
 				Action: func(c *cli.Context) error {
