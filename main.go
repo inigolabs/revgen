@@ -51,6 +51,13 @@ VERSION: {{.Version}}
 			},
 		},
 		Action: revgen.Generate,
+		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:    "force",
+				Aliases: []string{"f"},
+				Usage:   "Force run on all generators regardless of code changes",
+			},
+		},
 		Commands: []*cli.Command{
 			{
 				Name:   "update",
