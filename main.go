@@ -3,15 +3,17 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime/debug"
+	"strings"
 
 	"github.com/inigolabs/revgen/revgen"
 	"github.com/urfave/cli/v2"
 )
 
 var (
-	version = "dev"
-	commit  = "dev"
-	date    = "unknown"
+	version = ""
+	commit  = ""
+	date    = ""
 )
 
 func main() {
@@ -34,7 +36,7 @@ VERSION: {{.Version}}
 		Name:                 "revgen",
 		Usage:                "Only run go:generate when code changes",
 		HideVersion:          true,
-		Version:              fmt.Sprintf("%s : %s : %s\n", version, date, commit[:8]),
+		Version:              buildVersion(version, commit, date),
 		EnableBashCompletion: true,
 		ExitErrHandler: func(context *cli.Context, err error) {
 			if err != nil {
@@ -66,4 +68,24 @@ VERSION: {{.Version}}
 	}
 
 	app.Run(os.Args)
+}
+
+func buildVersion(version, commit, date string) string {
+	var result strings.Builder
+	if version != "" {
+		result.WriteString(fmt.Sprintf("version: %s\n", version))
+	}
+	if commit != "" {
+		result.WriteString(fmt.Sprintf("commit: %s\n", commit))
+	}
+	if date != "" {
+		result.WriteString(fmt.Sprintf("built at: %s", date))
+	}
+	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Sum != "" {
+		result.WriteString(fmt.Sprintf("module version: %s\n", info.Main.Version))
+		result.WriteString(fmt.Sprintf("checksum: %s\n", info.Main.Sum))
+	}
+	result.WriteString("\n")
+	result.WriteString("https://github.com/inigolabs/revgen\n")
+	return result.String()
 }
