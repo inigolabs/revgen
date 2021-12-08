@@ -14,39 +14,43 @@ const (
 	sumFileName    = ".revgen.sum"
 )
 
-func readConfigMap(rootPath string) (GenMap, error) {
-	var genList GenList
-	err := readYamlFile(filepath.Join(rootPath, configFileName), &genList)
+func readConfigMap(rootPath string) (*ConfigMap, error) {
+	var config Config
+	err := readYamlFile(filepath.Join(rootPath, configFileName), &config)
 	if err != nil {
 		return nil, fmt.Errorf("error reading %s", configFileName)
 	}
-	genMap := make(GenMap)
-	for _, config := range genList.Configs {
+	genMap := &ConfigMap{
+		AutoUpdate: config.AutoUpdate,
+		Configs:    make(map[Key]*GenConfig),
+	}
+	for _, c := range config.Configs {
 		key := Key{
-			FilePath: config.FilePath,
-			GenCmd:   config.GenCmd,
+			FilePath: c.FilePath,
+			GenCmd:   c.GenCmd,
 		}
-		genMap[key] = config
+		genMap.Configs[key] = c
 	}
 	return genMap, nil
 }
 
-func writeConfigMap(rootPath string, genMap GenMap) {
-	genList := GenList{
-		Configs: make([]*GenConfig, len(genMap)),
+func writeConfigMap(rootPath string, configMap *ConfigMap) {
+	config := Config{
+		AutoUpdate: configMap.AutoUpdate,
+		Configs:    make([]*GenConfig, len(configMap.Configs)),
 	}
 	i := 0
-	for _, config := range genMap {
-		genList.Configs[i] = config
+	for _, c := range configMap.Configs {
+		config.Configs[i] = c
 		i++
 	}
-	sort.Sort(genList)
-	writeYamlFile(filepath.Join(rootPath, configFileName), genList)
+	sort.Sort(config)
+	writeYamlFile(filepath.Join(rootPath, configFileName), config)
 }
 
-func readSumMap(rootPath string, genMap GenMap) SumMap {
-	sumList := SumList{}
-	sumMap := make(SumMap)
+func readSumMap(rootPath string, configMap *ConfigMap) StatusMap {
+	sumList := Status{}
+	sumMap := make(StatusMap)
 	err := readYamlFile(filepath.Join(rootPath, sumFileName), &sumList)
 	if err == nil {
 		for _, config := range sumList {
@@ -57,7 +61,7 @@ func readSumMap(rootPath string, genMap GenMap) SumMap {
 			sumMap[key] = config
 		}
 	}
-	for _, config := range genMap {
+	for _, config := range configMap.Configs {
 		key := Key{
 			FilePath: config.FilePath,
 			GenCmd:   config.GenCmd,
@@ -73,8 +77,8 @@ func readSumMap(rootPath string, genMap GenMap) SumMap {
 	return sumMap
 }
 
-func writeSumMap(rootPath string, sumMap SumMap) {
-	sumList := make(SumList, len(sumMap))
+func writeSumMap(rootPath string, sumMap StatusMap) {
+	sumList := make(Status, len(sumMap))
 	i := 0
 	for _, config := range sumMap {
 		sumList[i] = config
@@ -84,7 +88,7 @@ func writeSumMap(rootPath string, sumMap SumMap) {
 	writeYamlFile(filepath.Join(rootPath, sumFileName), sumList)
 }
 
-func getGoGenInfo(rootPath string) GenMap {
+func getGoGenInfo(rootPath string) *ConfigMap {
 	scanFileForGenerate := func(path string) []Key {
 		file, err := os.Open(path)
 		check(err)
@@ -107,7 +111,9 @@ func getGoGenInfo(rootPath string) GenMap {
 		return info
 	}
 
-	info := make(GenMap)
+	info := &ConfigMap{
+		Configs: make(map[Key]*GenConfig),
+	}
 	err := filepath.WalkDir(rootPath, func(path string, file os.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -115,7 +121,7 @@ func getGoGenInfo(rootPath string) GenMap {
 		if filepath.Ext(file.Name()) == ".go" {
 			genKeyList := scanFileForGenerate(path)
 			for _, key := range genKeyList {
-				info[key] = &GenConfig{
+				info.Configs[key] = &GenConfig{
 					FilePath: key.FilePath,
 					GenCmd:   key.GenCmd,
 				}

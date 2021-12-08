@@ -1,5 +1,12 @@
 package revgen
 
+type Config struct {
+	AutoUpdate bool         `yaml:"auto_update"`
+	Configs    []*GenConfig `yaml:"configs"`
+}
+
+type Status []*SumConfig
+
 type Key struct {
 	FilePath string `yaml:"path"`
 	GenCmd   string `yaml:"cmd"`
@@ -11,25 +18,24 @@ type GenConfig struct {
 	GenDeps  []string `yaml:"deps"`
 }
 
-type GenMap = map[Key]*GenConfig
-type GenList struct {
-	Configs []*GenConfig `yaml:"configs"`
-}
-
 type SumConfig struct {
 	FilePath string `yaml:"path"`
 	GenCmd   string `yaml:"cmd"`
 	Hash     string `yaml:"hash"`
 }
 
-type SumMap = map[Key]*SumConfig
-type SumList []*SumConfig
+type ConfigMap struct {
+	AutoUpdate bool
+	Configs    map[Key]*GenConfig
+}
 
-func (l GenList) Len() int {
+type StatusMap = map[Key]*SumConfig
+
+func (l Config) Len() int {
 	return len(l.Configs)
 }
 
-func (l GenList) Less(i int, j int) bool {
+func (l Config) Less(i int, j int) bool {
 	if l.Configs[i].FilePath < l.Configs[j].FilePath {
 		return true
 	} else if l.Configs[i].FilePath == l.Configs[j].FilePath {
@@ -40,17 +46,17 @@ func (l GenList) Less(i int, j int) bool {
 	return false
 }
 
-func (l GenList) Swap(i int, j int) {
+func (l Config) Swap(i int, j int) {
 	buf := l.Configs[i]
 	l.Configs[i] = l.Configs[j]
 	l.Configs[j] = buf
 }
 
-func (l SumList) Len() int {
+func (l Status) Len() int {
 	return len(l)
 }
 
-func (l SumList) Less(i int, j int) bool {
+func (l Status) Less(i int, j int) bool {
 	if l[i].FilePath < l[j].FilePath {
 		return true
 	} else if l[i].FilePath == l[j].FilePath {
@@ -61,7 +67,7 @@ func (l SumList) Less(i int, j int) bool {
 	return false
 }
 
-func (l SumList) Swap(i int, j int) {
+func (l Status) Swap(i int, j int) {
 	buf := l[i]
 	l[i] = l[j]
 	l[j] = buf
