@@ -1,8 +1,10 @@
 package revgen
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/urfave/cli/v2"
 )
@@ -74,5 +76,38 @@ func Generate(c *cli.Context) error {
 	}
 
 	writeSumMap(rootPath, sumMap)
+	return nil
+}
+
+func Check(c *cli.Context) error {
+	rootPath := getGoRootDir()
+	configMap, err := readConfigMap(rootPath)
+	if err != nil {
+		return fmt.Errorf("%s not found, run 'revgen update' to create one", configFileName)
+	}
+
+	sumMap := readSumMap(rootPath, configMap)
+	if c.Bool("force") {
+		for _, c := range sumMap {
+			c.Hash = ""
+		}
+	}
+
+	var messages strings.Builder
+
+	for key, config := range configMap.Configs {
+		sum := sumMap[key]
+		currHash, err := getHash(rootPath, config)
+		if err != nil {
+			messages.WriteString(fmt.Sprintf("%s:\n  %s\n  - error: %s\n", key.FilePath, key.GenCmd, err))
+		} else if sum.Hash != currHash {
+			messages.WriteString(fmt.Sprintf("%s:\n  %s\n  - error: %s\n", key.FilePath, key.GenCmd, "hash mismatch"))
+		}
+	}
+
+	errs := messages.String()
+	if errs != "" {
+		return errors.New(errs)
+	}
 	return nil
 }
