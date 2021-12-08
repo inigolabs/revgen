@@ -14,20 +14,22 @@ func Update(c *cli.Context) error {
 	configMap, err := readConfigMap(rootPath)
 	if err != nil {
 		fmt.Printf("initializing %s\n", configFileName)
-		configMap = make(GenMap)
-	}
-
-	for key, genConfig := range gogenMap {
-		if _, found := configMap[key]; !found {
-			fmt.Printf("added %s:\n  %s\n", key.FilePath, key.GenCmd)
-			configMap[key] = genConfig
+		configMap = &ConfigMap{
+			Configs: make(map[Key]*GenConfig),
 		}
 	}
 
-	for key := range configMap {
-		if _, found := gogenMap[key]; !found {
+	for key, genConfig := range gogenMap.Configs {
+		if _, found := configMap.Configs[key]; !found {
+			fmt.Printf("added %s:\n  %s\n", key.FilePath, key.GenCmd)
+			configMap.Configs[key] = genConfig
+		}
+	}
+
+	for key := range configMap.Configs {
+		if _, found := gogenMap.Configs[key]; !found {
 			fmt.Printf("removed %s:\n  %s\n", key.FilePath, key.GenCmd)
-			delete(configMap, key)
+			delete(configMap.Configs, key)
 		}
 	}
 
@@ -41,9 +43,13 @@ func Generate(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("%s not found, run 'revgen update' to create one", configFileName)
 	}
+
+	if configMap.AutoUpdate {
+		Update(c)
+	}
 	sumMap := readSumMap(rootPath, configMap)
 
-	for key, config := range configMap {
+	for key, config := range configMap.Configs {
 		sum := sumMap[key]
 		currHash, err := getHash(rootPath, config)
 		if err != nil {
