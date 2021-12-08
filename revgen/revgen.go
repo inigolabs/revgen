@@ -47,7 +47,13 @@ func Generate(c *cli.Context) error {
 	if configMap.AutoUpdate {
 		Update(c)
 	}
+
 	sumMap := readSumMap(rootPath, configMap)
+	if c.Bool("force") {
+		for _, c := range sumMap {
+			c.Hash = ""
+		}
+	}
 
 	for key, config := range configMap.Configs {
 		sum := sumMap[key]
