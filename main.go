@@ -60,6 +60,11 @@ VERSION: {{.Version}}
 		},
 		Commands: []*cli.Command{
 			{
+				Name:   "init",
+				Usage:  "Init revgen config file",
+				Action: revgen.Update,
+			},
+			{
 				Name:   "update",
 				Usage:  "Update revgen config file",
 				Action: revgen.Update,
