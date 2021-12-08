@@ -9,6 +9,11 @@
 Installation
 ------------
 
+### Go
+```bash
+> go install github.com/inigolabs/revgen@latest
+```
+
 ### Brew
 ```bash
 > brew tap inigolabs/homebrew-tap
