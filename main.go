@@ -29,6 +29,7 @@ GLOBAL OPTIONS:
 COMMANDS:
 {{range .Commands}}{{if not .HideHelp}}   {{join .Names ","}}{{ "\t"}}{{.Usage}}{{ "\n" }}{{end}}{{end}}
 AUTHOR: {{range .Authors}}{{ . }}{{end}}
+
 VERSION: {{.Version}}
 `
 

@@ -4,7 +4,7 @@
 [![ReportCard](https://goreportcard.com/badge/github.com/ejoffe/spr)](https://goreportcard.com/report/github.com/ejoffe/spr)
 [![Doc](https://godoc.org/github.com/ejoffe/spr?status.svg)](https://godoc.org/github.com/ejoffe/spr)
 
-## only run go:generate when code changes
+## Speed up go:generate by auto detecting code changes.
 
 At Inigo we generate a lot of go code. While our compile and build time runs in a matter of seconds thanks to the great go toolchain, running all the generators takes a few minutes on a good day. Running a single generator is fairly fast, but having to keep track of which generator to run gets annoying very fast.  
 Revgen keeps track of all the go:generate dependencies and only runs the generators for code that has been updated. By running one to a handful of generators at most, the go:generate run time goes down from minutes to seconds.  
@@ -59,10 +59,9 @@ Can be useful in continious integration pipelines to make sure all needed code h
   
 Configuration
 -------------
-- Each go:generate command has a list of file dependencies which can be configured in the **.revgen.yml** file located in the root go directory.  
+- Each go:generate command has a list of file dependencies which can be configured in **.revgen.yml**.
 - Deps can be configured with one or more glob strings. Revgen will compute the hash of all the files matched by the list of globs, and use this hash to determine if the generator needs to be called.   
 - Revgen stores the currently generated hashes in **.revgen.sum**, in general this file doesn't need to be edited. When in doubt, entries from .revgen.sum can be safely removed or the hash edited, they will be recomputed the next time revgen runs.  
-- Set auto update to true, to always update the config file on every revgen run.  
 ***
 Example .revgen.yml:
 ```
