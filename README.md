@@ -42,9 +42,9 @@ See the configuration section for more information on setting go generate file d
 Run **revgen** anywhere inside your go workspace to call all the generators for code that has changed.  
 ***  
 ```shell
-> revgen -force
+> revgen --force
 ```
-Run **revgen -force** to run all the genrators regardless of code updates. 
+Run **revgen --force** to run all the genrators regardless of code updates. 
 ***
 ```shell
 > revgen update
@@ -59,7 +59,25 @@ Can be useful in continious integration pipelines to make sure all needed code h
   
 Configuration
 -------------
-> TODO
+- Each go:generate command has a list of file dependencies which can be configured in the **.revgen.yml** file located in the root go directory.  
+- Deps can be configured with one or more glob strings. Revgen will compute the hash of all the files matched by the list of globs, and use this hash to determine if the generator needs to be called.   
+- Revgen stores the currently generated hashes in **.revgen.sum**, in general this file doesn't need to be edited. When in doubt, entries from .revgen.sum can be safely removed or the hash edited, they will be recomputed the next time revgen runs.  
+- Set auto update to true, to always update the config file on every revgen run.  
+***
+Example .revgen.yml:
+```
+auto_update: true
+configs:
+    - path: super/cool/generator.go
+      cmd: go run github.com/super/cool
+      deps:
+        - super/cool/generator.yml
+        - super/cool/*.go
+    - path: another/cool/generator.go
+      cmd: go run github.com/another/generator
+      deps:
+        - another/cool/generator.yml
+```
   
 License
 -------
