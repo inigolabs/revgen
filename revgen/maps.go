@@ -3,22 +3,30 @@ package revgen
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
-const (
-	configFileName = ".revgen.yml"
-	sumFileName    = ".revgen.sum"
-)
-
-func readConfigMap(rootPath string) (*ConfigMap, error) {
-	var config Config
-	err := readYamlFile(filepath.Join(rootPath, configFileName), &config)
+func (a *App) getConfigMap() (*ConfigMap, error) {
+	filename := filepath.Join(a.RootPath, a.ConfigFileName)
+	reader, err := os.OpenFile(filename, os.O_RDONLY, os.ModePerm)
 	if err != nil {
-		return nil, fmt.Errorf("error reading %s", configFileName)
+		return nil, fmt.Errorf("error reading %s", filename)
+	}
+	return a.readConfigMap(reader)
+}
+
+func (a *App) readConfigMap(reader io.Reader) (*ConfigMap, error) {
+	var config Config
+	decoder := yaml.NewDecoder(reader)
+	err := decoder.Decode(&config)
+	if err != nil {
+		return nil, fmt.Errorf("error reading %s", a.ConfigFileName)
 	}
 	genMap := &ConfigMap{
 		AutoUpdate: config.AutoUpdate,
@@ -34,7 +42,7 @@ func readConfigMap(rootPath string) (*ConfigMap, error) {
 	return genMap, nil
 }
 
-func writeConfigMap(rootPath string, configMap *ConfigMap) {
+func (a *App) writeConfigMap(configMap *ConfigMap) {
 	config := Config{
 		AutoUpdate: configMap.AutoUpdate,
 		Configs:    make([]*GenConfig, len(configMap.Configs)),
@@ -45,13 +53,13 @@ func writeConfigMap(rootPath string, configMap *ConfigMap) {
 		i++
 	}
 	sort.Sort(config)
-	writeYamlFile(filepath.Join(rootPath, configFileName), config)
+	writeYamlFile(filepath.Join(a.RootPath, a.ConfigFileName), config)
 }
 
-func readSumMap(rootPath string, configMap *ConfigMap) StatusMap {
+func (a *App) readSumMap(configMap *ConfigMap) StatusMap {
 	sumList := Status{}
 	sumMap := make(StatusMap)
-	err := readYamlFile(filepath.Join(rootPath, sumFileName), &sumList)
+	err := readYamlFile(filepath.Join(a.RootPath, a.SumFileName), &sumList)
 	if err == nil {
 		for _, config := range sumList {
 			key := Key{
@@ -77,7 +85,7 @@ func readSumMap(rootPath string, configMap *ConfigMap) StatusMap {
 	return sumMap
 }
 
-func writeSumMap(rootPath string, sumMap StatusMap) {
+func (a *App) writeSumMap(sumMap StatusMap) {
 	sumList := make(Status, len(sumMap))
 	i := 0
 	for _, config := range sumMap {
@@ -85,10 +93,10 @@ func writeSumMap(rootPath string, sumMap StatusMap) {
 		i++
 	}
 	sort.Sort(sumList)
-	writeYamlFile(filepath.Join(rootPath, sumFileName), sumList)
+	writeYamlFile(filepath.Join(a.RootPath, a.SumFileName), sumList)
 }
 
-func getGoGenInfo(rootPath string) *ConfigMap {
+func (a *App) getGoGenInfo() *ConfigMap {
 	scanFileForGenerate := func(path string) []Key {
 		file, err := os.Open(path)
 		check(err)
@@ -100,7 +108,7 @@ func getGoGenInfo(rootPath string) *ConfigMap {
 			if strings.HasPrefix(scanner.Text(), "//go:generate") {
 				fields := strings.SplitN(scanner.Text(), " ", 2)
 
-				relpath, err := filepath.Rel(rootPath, path)
+				relpath, err := filepath.Rel(a.RootPath, path)
 				check(err)
 				info = append(info, Key{
 					FilePath: relpath,
@@ -114,7 +122,7 @@ func getGoGenInfo(rootPath string) *ConfigMap {
 	info := &ConfigMap{
 		Configs: make(map[Key]*GenConfig),
 	}
-	err := filepath.WalkDir(rootPath, func(path string, file os.DirEntry, err error) error {
+	err := filepath.WalkDir(a.RootPath, func(path string, file os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}

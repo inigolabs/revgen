@@ -1,0 +1,6 @@
+- path: gen.go
+  cmd: echo a
+  hash: ""
+- path: gen.go
+  cmd: echo b
+  hash: ""
