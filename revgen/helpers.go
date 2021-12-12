@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
-	//yaml2 "github.com/goccy/go-yaml"
 )
 
 func getGoRootDir() string {

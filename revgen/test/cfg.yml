@@ -1,0 +1,8 @@
+auto_update: false
+configs:
+    - path: gen.go
+      cmd: echo a
+      deps: []
+    - path: gen.go
+      cmd: echo b
+      deps: []

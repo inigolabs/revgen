@@ -9,13 +9,11 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func Update(c *cli.Context) error {
-	rootPath := getGoRootDir()
-
-	gogenMap := getGoGenInfo(rootPath)
-	configMap, err := readConfigMap(rootPath)
+func (a *App) Update(c *cli.Context) error {
+	gogenMap := a.getGoGenInfo()
+	configMap, err := a.getConfigMap()
 	if err != nil {
-		fmt.Printf("initializing %s\n", configFileName)
+		fmt.Printf("initializing %s\n", a.ConfigFileName)
 		configMap = &ConfigMap{
 			Configs: make(map[Key]*GenConfig),
 		}
@@ -35,22 +33,21 @@ func Update(c *cli.Context) error {
 		}
 	}
 
-	writeConfigMap(rootPath, configMap)
+	a.writeConfigMap(configMap)
 	return nil
 }
 
-func Generate(c *cli.Context) error {
-	rootPath := getGoRootDir()
-	configMap, err := readConfigMap(rootPath)
+func (a *App) Generate(c *cli.Context) error {
+	configMap, err := a.getConfigMap()
 	if err != nil {
-		return fmt.Errorf("%s not found, run 'revgen update' to create one", configFileName)
+		return fmt.Errorf("%s not found, run 'revgen update' to create one", a.ConfigFileName)
 	}
 
 	if configMap.AutoUpdate {
-		Update(c)
+		a.Update(c)
 	}
 
-	sumMap := readSumMap(rootPath, configMap)
+	sumMap := a.readSumMap(configMap)
 	if c.Bool("force") {
 		for _, c := range sumMap {
 			c.Hash = ""
@@ -59,45 +56,38 @@ func Generate(c *cli.Context) error {
 
 	for key, config := range configMap.Configs {
 		sum := sumMap[key]
-		currHash, err := getHash(rootPath, config)
+		currHash, err := getHash(a.RootPath, config)
 		if err != nil {
 			fmt.Printf("%s:\n  %s\n  - error:%s\n", key.FilePath, key.GenCmd, err)
-			path := filepath.Join(rootPath, filepath.Dir(key.FilePath))
+			path := filepath.Join(a.RootPath, filepath.Dir(key.FilePath))
 			_, err = runCmd(key.GenCmd, path)
 			check(err)
 			sum.Hash = currHash
 		} else if sum.Hash != currHash {
 			fmt.Printf("%s:\n  %s\n", key.FilePath, key.GenCmd)
-			path := filepath.Join(rootPath, filepath.Dir(key.FilePath))
+			path := filepath.Join(a.RootPath, filepath.Dir(key.FilePath))
 			_, err := runCmd(key.GenCmd, path)
 			check(err)
 			sum.Hash = currHash
 		}
 	}
 
-	writeSumMap(rootPath, sumMap)
+	a.writeSumMap(sumMap)
 	return nil
 }
 
-func Check(c *cli.Context) error {
-	rootPath := getGoRootDir()
-	configMap, err := readConfigMap(rootPath)
+func (a *App) Check(c *cli.Context) error {
+	configMap, err := a.getConfigMap()
 	if err != nil {
-		return fmt.Errorf("%s not found, run 'revgen update' to create one", configFileName)
+		return fmt.Errorf("%s not found, run 'revgen update' to create one", a.ConfigFileName)
 	}
 
-	sumMap := readSumMap(rootPath, configMap)
-	if c.Bool("force") {
-		for _, c := range sumMap {
-			c.Hash = ""
-		}
-	}
+	sumMap := a.readSumMap(configMap)
 
 	var messages strings.Builder
-
 	for key, config := range configMap.Configs {
 		sum := sumMap[key]
-		currHash, err := getHash(rootPath, config)
+		currHash, err := getHash(a.RootPath, config)
 		if err != nil {
 			messages.WriteString(fmt.Sprintf("%s:\n  %s\n  - error: %s\n", key.FilePath, key.GenCmd, err))
 		} else if sum.Hash != currHash {
