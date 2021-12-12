@@ -30,14 +30,6 @@ func MakeApp(version string) *App {
 		HideVersion:          true,
 		Version:              version,
 		EnableBashCompletion: true,
-		/*
-			ExitErrHandler: func(context *cli.Context, err error) {
-				if err != nil {
-					fmt.Println(err)
-					os.Exit(1)
-				}
-			},
-		*/
 		Authors: []*cli.Author{
 			{
 				Name:  "Eitan Joffe",

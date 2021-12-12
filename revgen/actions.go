@@ -60,14 +60,18 @@ func (a *App) Generate(c *cli.Context) error {
 		if err != nil {
 			fmt.Printf("%s:\n  %s\n  - error:%s\n", key.FilePath, key.GenCmd, err)
 			path := filepath.Join(a.RootPath, filepath.Dir(key.FilePath))
-			_, err = runCmd(key.GenCmd, path)
-			check(err)
+			err = runGenCmd(key.GenCmd, path)
+			if err != nil {
+				return err
+			}
 			sum.Hash = currHash
 		} else if sum.Hash != currHash {
 			fmt.Printf("%s:\n  %s\n", key.FilePath, key.GenCmd)
 			path := filepath.Join(a.RootPath, filepath.Dir(key.FilePath))
-			_, err := runCmd(key.GenCmd, path)
-			check(err)
+			err := runGenCmd(key.GenCmd, path)
+			if err != nil {
+				return err
+			}
 			sum.Hash = currHash
 		}
 	}

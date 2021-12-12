@@ -84,6 +84,17 @@ func runCmd(cmdStr string, dir string) (string, error) {
 	return output.String(), err
 }
 
+func runGenCmd(cmdStr string, dir string) error {
+	args := strings.Split(cmdStr, " ")
+	cmd := exec.Command(args[0], args[1:]...)
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Env = os.Environ()
+	err := cmd.Run()
+	return err
+}
+
 func readYamlFile(filename string, dataPtr interface{}) error {
 	reader, err := os.OpenFile(filename, os.O_RDONLY, os.ModePerm)
 	if err != nil {
