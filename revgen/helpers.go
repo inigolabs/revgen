@@ -46,20 +46,47 @@ func getGoRootDir() string {
 	return goRootPath
 }
 
-func getHash(rootPath string, config *GenConfig) (string, error) {
-	if len(config.GenDeps) == 0 {
-		return "", errors.New("missing deps")
+func getHash(rootPath string, hashType string, globs []string) (string, error) {
+	if len(globs) == 0 {
+		return "", fmt.Errorf("missing %s deps", hashType)
 	}
 
+	var matchedFiles []string
 	var files []string
-	for _, dep := range config.GenDeps {
+
+	for _, dep := range globs {
 		matches, err := filepath.Glob(filepath.Join(rootPath, dep))
 		check(err)
-		files = append(files, matches...)
+		matchedFiles = append(files, matches...)
 	}
 
-	if len(files) == 0 {
-		return "", errors.New("empty deps")
+	if len(matchedFiles) == 0 {
+		return "", fmt.Errorf("empty %s deps", hashType)
+	}
+
+	for _, file := range matchedFiles {
+		fileInfo, err := os.Stat(file)
+		check(err)
+
+		if fileInfo.IsDir() {
+			err := filepath.Walk(file,
+				func(path string, info os.FileInfo, err error) error {
+					if err != nil {
+						return err
+					}
+					fileInfo, err := os.Stat(path)
+					if err != nil {
+						return err
+					}
+					if !fileInfo.IsDir() {
+						files = append(files, path)
+					}
+					return nil
+				})
+			check(err)
+		} else {
+			files = append(files, file)
+		}
 	}
 
 	hash := md5.New()
