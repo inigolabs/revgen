@@ -1,5 +1,4 @@
-![logo](docs/revgen_gopher.jpeg)
-# revgen
+![logo](docs/revgen_gopher.png)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![ReportCard](https://goreportcard.com/badge/github.com/ejoffe/spr)](https://goreportcard.com/report/github.com/ejoffe/spr)
@@ -65,7 +64,7 @@ Configuration
 - Revgen stores the currently generated hashes in **.revgen.sum**, in general this file doesn't need to be edited. When in doubt, entries from .revgen.sum can be safely removed or the hash edited, they will be recomputed the next time revgen runs.  
 ***
 Example .revgen.yml:
-```
+```yaml
 auto_update: true
 configs:
     - path: super/cool/generator.go
