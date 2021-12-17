@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -41,6 +42,13 @@ func getGoRootDir() string {
 
 	if err.Error() != "done" {
 		panic(err)
+	}
+
+	fmt.Printf("go root:%s\n", goRootPath)
+	files, err := ioutil.ReadDir("./")
+	check(err)
+	for _, f := range files {
+		fmt.Println(f.Name())
 	}
 
 	return goRootPath
