@@ -1,6 +1,8 @@
 - path: gen.go
   cmd: echo a
-  hash: ""
+  hash_deps: ""
+  hash_files: ""
 - path: gen.go
   cmd: echo b
-  hash: ""
+  hash_deps: ""
+  hash_files: ""

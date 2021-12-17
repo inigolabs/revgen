@@ -76,9 +76,10 @@ func (a *App) readSumMap(configMap *ConfigMap) StatusMap {
 		}
 		if _, found := sumMap[key]; !found {
 			sumMap[key] = &SumConfig{
-				FilePath: config.FilePath,
-				GenCmd:   config.GenCmd,
-				Hash:     "",
+				FilePath:  config.FilePath,
+				GenCmd:    config.GenCmd,
+				HashDeps:  "",
+				HashFiles: "",
 			}
 		}
 	}

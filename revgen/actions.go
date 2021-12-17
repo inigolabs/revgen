@@ -9,6 +9,9 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+// Update walks the codebase looking for go:generate lines
+//  Each new go:generate is added to the config file
+//  Removed go:generate lines are removed from the config file
 func (a *App) Update(c *cli.Context) error {
 	gogenMap := a.getGoGenInfo()
 	configMap, err := a.getConfigMap()
@@ -37,6 +40,10 @@ func (a *App) Update(c *cli.Context) error {
 	return nil
 }
 
+// Generate goes through all the configured go:generate commands.
+//  For each command, a new hash is computed from the gen deps,
+//  if this hash is different than the stored hash, the generate
+//  command is run, and the new hash is stored in the sum file.
 func (a *App) Generate(c *cli.Context) error {
 	configMap, err := a.getConfigMap()
 	if err != nil {
@@ -50,29 +57,34 @@ func (a *App) Generate(c *cli.Context) error {
 	sumMap := a.readSumMap(configMap)
 	if c.Bool("force") {
 		for _, c := range sumMap {
-			c.Hash = ""
+			c.HashDeps = ""
 		}
 	}
 
 	for key, config := range configMap.Configs {
+		runGen := false
 		sum := sumMap[key]
-		currHash, err := getHash(a.RootPath, config)
+		currHash, err := getHash(a.RootPath, "gen", config.GenDeps)
 		if err != nil {
 			fmt.Printf("%s:\n  %s\n  - error:%s\n", key.FilePath, key.GenCmd, err)
+			runGen = true
+		} else if sum.HashDeps != currHash {
+			fmt.Printf("%s:\n  %s\n", key.FilePath, key.GenCmd)
+			runGen = true
+		}
+
+		if runGen {
 			path := filepath.Join(a.RootPath, filepath.Dir(key.FilePath))
 			err = runGenCmd(key.GenCmd, path)
 			if err != nil {
 				return err
 			}
-			sum.Hash = currHash
-		} else if sum.Hash != currHash {
-			fmt.Printf("%s:\n  %s\n", key.FilePath, key.GenCmd)
-			path := filepath.Join(a.RootPath, filepath.Dir(key.FilePath))
-			err := runGenCmd(key.GenCmd, path)
-			if err != nil {
-				return err
+			sum.HashDeps = currHash
+			if len(config.GenFiles) > 0 {
+				filesHash, err := getHash(a.RootPath, "file", config.GenFiles)
+				check(err)
+				sum.HashFiles = filesHash
 			}
-			sum.Hash = currHash
 		}
 	}
 
@@ -91,11 +103,20 @@ func (a *App) Check(c *cli.Context) error {
 	var messages strings.Builder
 	for key, config := range configMap.Configs {
 		sum := sumMap[key]
-		currHash, err := getHash(a.RootPath, config)
+		currGenHash, err := getHash(a.RootPath, "gen", config.GenDeps)
 		if err != nil {
 			messages.WriteString(fmt.Sprintf("%s:\n  %s\n  - error: %s\n", key.FilePath, key.GenCmd, err))
-		} else if sum.Hash != currHash {
-			messages.WriteString(fmt.Sprintf("%s:\n  %s\n  - error: %s\n", key.FilePath, key.GenCmd, "hash mismatch"))
+		} else if sum.HashDeps != currGenHash {
+			messages.WriteString(fmt.Sprintf("%s:\n  %s\n  - error: %s\n", key.FilePath, key.GenCmd, "gen hash mismatch"))
+		}
+
+		if len(config.GenFiles) > 0 {
+			currFilesHash, err := getHash(a.RootPath, "file", config.GenFiles)
+			if err != nil {
+				messages.WriteString(fmt.Sprintf("%s:\n  %s\n  - error: %s\n", key.FilePath, key.GenCmd, err))
+			} else if sum.HashFiles != currFilesHash {
+				messages.WriteString(fmt.Sprintf("%s:\n  %s\n  - error: %s\n", key.FilePath, key.GenCmd, "file hash mismatch"))
+			}
 		}
 	}
 

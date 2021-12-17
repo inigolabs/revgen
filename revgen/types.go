@@ -14,14 +14,16 @@ type Key struct {
 
 type GenConfig struct {
 	FilePath string   `yaml:"path"`
-	GenCmd   string   `yaml:"cmd"`
-	GenDeps  []string `yaml:"deps"`
+	GenCmd   string   `yaml:"gen_cmd"`
+	GenDeps  []string `yaml:"gen_deps"`
+	GenFiles []string `yaml:"gen_files"`
 }
 
 type SumConfig struct {
-	FilePath string `yaml:"path"`
-	GenCmd   string `yaml:"cmd"`
-	Hash     string `yaml:"hash"`
+	FilePath  string `yaml:"path"`
+	GenCmd    string `yaml:"cmd"`
+	HashDeps  string `yaml:"hash_deps"`
+	HashFiles string `yaml:"hash_files"`
 }
 
 type ConfigMap struct {
