@@ -16,6 +16,7 @@ func (a *App) getConfigMap() (*ConfigMap, error) {
 	filename := filepath.Join(a.RootPath, a.ConfigFileName)
 	reader, err := os.OpenFile(filename, os.O_RDONLY, os.ModePerm)
 	if err != nil {
+		fmt.Println(err)
 		return nil, fmt.Errorf("error reading %s", filename)
 	}
 	return a.readConfigMap(reader)
