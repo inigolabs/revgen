@@ -33,7 +33,7 @@ Operation
 > revgen init
 ```
 The very first time, run **revgen init** to initialize and create a **.revgen.yml** config file.  
-The config file is placed in the root go directory.  
+Run this command in the root go dir, the config file will be created in this directory. 
 See the configuration section for more information on setting go generate file dependecies.
 ***  
 ```shell
@@ -60,7 +60,8 @@ Can be useful in continious integration pipelines to make sure all needed code h
 Configuration
 -------------
 - Each go:generate command has a list of file dependencies which can be configured in **.revgen.yml**.
-- Deps can be configured with one or more glob strings. Revgen will compute the hash of all the files matched by the list of globs, and use this hash to determine if the generator needs to be called.   
+- Gen deps can be configured with one or more glob strings. Revgen will compute the hash of all the files matched by the list of globs, and use this hash to determine if the generator needs to be called.   
+- File deps can be configured to make sure generated code isn't edited manutally without calling generate. Running **revgen check** will check both the gen deps and file deps to make sure all the generated code is generated and not manually tampered. 
 - Revgen stores the currently generated hashes in **.revgen.sum**, in general this file doesn't need to be edited. When in doubt, entries from .revgen.sum can be safely removed or the hash edited, they will be recomputed the next time revgen runs.  
 ***
 Example .revgen.yml:
@@ -68,13 +69,15 @@ Example .revgen.yml:
 auto_update: true
 configs:
     - path: super/cool/generator.go
-      cmd: go run github.com/super/cool
-      deps:
+      gen_cmd: go run github.com/super/cool
+      gen_deps:
         - super/cool/generator.yml
         - super/cool/*.go
+      file_deps:
+        - super/cool/gen/generated.go
     - path: another/cool/generator.go
-      cmd: go run github.com/another/generator
-      deps:
+      gen_cmd: go run github.com/another/generator
+      gen_deps:
         - another/cool/generator.yml
 ```
   

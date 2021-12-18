@@ -3,7 +3,6 @@ package revgen
 import (
 	"bytes"
 	"crypto/md5"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -13,38 +12,6 @@ import (
 
 	"gopkg.in/yaml.v3"
 )
-
-func getGoRootDir() string {
-	var goRootPath string
-	// walk files until we find a .go file
-	//  then run "go list -f '{{.Root}}'" to get the go root dir
-	currDir, err := os.Getwd()
-	check(err)
-	err = filepath.WalkDir(currDir, func(path string, entry os.DirEntry, err error) error {
-		if filepath.Ext(entry.Name()) == ".go" {
-			out, err := runCmd("go list -f '{{.Root}}'", filepath.Dir(path))
-			if err != nil {
-				return err
-			}
-
-			// unqoute and trim new line from cmd output
-			goRootPath = string(out[1 : len(out)-2])
-			return errors.New("done")
-		}
-		return nil
-	})
-
-	// if no error : it means the walk completed and didn't find any go files
-	if err == nil {
-		panic("no go files found")
-	}
-
-	if err.Error() != "done" {
-		panic(err)
-	}
-
-	return goRootPath
-}
 
 func getHash(rootPath string, hashType string, globs []string) (string, error) {
 	if len(globs) == 0 {
@@ -57,7 +24,7 @@ func getHash(rootPath string, hashType string, globs []string) (string, error) {
 	for _, dep := range globs {
 		matches, err := filepath.Glob(filepath.Join(rootPath, dep))
 		check(err)
-		matchedFiles = append(files, matches...)
+		matchedFiles = append(matchedFiles, matches...)
 	}
 
 	if len(matchedFiles) == 0 {
@@ -99,11 +66,13 @@ func getHash(rootPath string, hashType string, globs []string) (string, error) {
 	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
-func runCmd(cmdStr string, dir string) (string, error) {
+func runCmd(cmdStr string, dir *string) (string, error) {
 	var output bytes.Buffer
 	args := strings.Split(cmdStr, " ")
 	cmd := exec.Command(args[0], args[1:]...)
-	cmd.Dir = dir
+	if dir != nil {
+		cmd.Dir = *dir
+	}
 	cmd.Stdout = &output
 	cmd.Stderr = &output
 	cmd.Env = os.Environ()

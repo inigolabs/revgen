@@ -2,7 +2,6 @@ package revgen
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -12,21 +11,24 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func (a *App) getConfigMap() (*ConfigMap, error) {
-	filename := filepath.Join(a.RootPath, a.ConfigFileName)
+func (a *App) getConfigMap() *ConfigMap {
+	if a.rootPath == nil {
+		return nil
+	}
+	filename := filepath.Join(*a.rootPath, a.ConfigFileName)
 	reader, err := os.OpenFile(filename, os.O_RDONLY, os.ModePerm)
 	if err != nil {
-		return nil, fmt.Errorf("error reading %s", filename)
+		return nil
 	}
 	return a.readConfigMap(reader)
 }
 
-func (a *App) readConfigMap(reader io.Reader) (*ConfigMap, error) {
+func (a *App) readConfigMap(reader io.Reader) *ConfigMap {
 	var config Config
 	decoder := yaml.NewDecoder(reader)
 	err := decoder.Decode(&config)
 	if err != nil {
-		return nil, fmt.Errorf("error reading %s", a.ConfigFileName)
+		return nil
 	}
 	genMap := &ConfigMap{
 		AutoUpdate: config.AutoUpdate,
@@ -39,7 +41,7 @@ func (a *App) readConfigMap(reader io.Reader) (*ConfigMap, error) {
 		}
 		genMap.Configs[key] = c
 	}
-	return genMap, nil
+	return genMap
 }
 
 func (a *App) writeConfigMap(configMap *ConfigMap) {
@@ -53,13 +55,13 @@ func (a *App) writeConfigMap(configMap *ConfigMap) {
 		i++
 	}
 	sort.Sort(config)
-	writeYamlFile(filepath.Join(a.RootPath, a.ConfigFileName), config)
+	writeYamlFile(filepath.Join(*a.rootPath, a.ConfigFileName), config)
 }
 
 func (a *App) readSumMap(configMap *ConfigMap) StatusMap {
 	sumList := Status{}
 	sumMap := make(StatusMap)
-	err := readYamlFile(filepath.Join(a.RootPath, a.SumFileName), &sumList)
+	err := readYamlFile(filepath.Join(*a.rootPath, a.SumFileName), &sumList)
 	if err == nil {
 		for _, config := range sumList {
 			key := Key{
@@ -94,7 +96,7 @@ func (a *App) writeSumMap(sumMap StatusMap) {
 		i++
 	}
 	sort.Sort(sumList)
-	writeYamlFile(filepath.Join(a.RootPath, a.SumFileName), sumList)
+	writeYamlFile(filepath.Join(*a.rootPath, a.SumFileName), sumList)
 }
 
 func (a *App) getGoGenInfo() *ConfigMap {
@@ -109,7 +111,7 @@ func (a *App) getGoGenInfo() *ConfigMap {
 			if strings.HasPrefix(scanner.Text(), "//go:generate") {
 				fields := strings.SplitN(scanner.Text(), " ", 2)
 
-				relpath, err := filepath.Rel(a.RootPath, path)
+				relpath, err := filepath.Rel(*a.rootPath, path)
 				check(err)
 				info = append(info, Key{
 					FilePath: relpath,
@@ -123,7 +125,7 @@ func (a *App) getGoGenInfo() *ConfigMap {
 	info := &ConfigMap{
 		Configs: make(map[Key]*GenConfig),
 	}
-	err := filepath.WalkDir(a.RootPath, func(path string, file os.DirEntry, err error) error {
+	err := filepath.WalkDir(*a.rootPath, func(path string, file os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
