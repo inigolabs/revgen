@@ -1,8 +1,8 @@
 ![logo](docs/revgen_gopher.png)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![ReportCard](https://goreportcard.com/badge/github.com/ejoffe/spr)](https://goreportcard.com/report/github.com/ejoffe/spr)
-[![Doc](https://godoc.org/github.com/ejoffe/spr?status.svg)](https://godoc.org/github.com/ejoffe/spr)
+[![ReportCard](https://goreportcard.com/badge/github.com/inigolabs/revgen)](https://goreportcard.com/report/github.com/inigolabs/revgen)
+[![Doc](https://godoc.org/github.com/inigolabs/revgen?status.svg)](https://godoc.org/github.com/inigolabs/revgen)
 
 ## Speed up go:generate by auto detecting code changes.
 
