@@ -2,12 +2,18 @@ package revgen
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
 func makeTestApp(path string) *App {
 	app := MakeApp("test")
-	app.RootPath = filepath.Join(getGoRootDir(), path)
+
+	out, err := runCmd("git rev-parse --show-toplevel", nil)
+	check(err)
+	rootDir := strings.TrimSpace(out)
+	path = filepath.Join(rootDir, path)
+	app.rootPath = &path
 	app.ConfigFileName = "cfg.yml"
 	app.SumFileName = "sum.yml"
 	return app

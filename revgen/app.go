@@ -1,28 +1,33 @@
 package revgen
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/urfave/cli/v2"
 )
 
 type App struct {
-	RootPath       string
 	ConfigFileName string
 	SumFileName    string
 
-	cliapp *cli.App
+	rootPath *string
+	cliapp   *cli.App
+	debug    bool
 }
 
 func MakeApp(version string) *App {
 	cli.AppHelpTemplate = template
 
 	app := &App{
-		RootPath:       getGoRootDir(),
 		ConfigFileName: ".revgen.yml",
 		SumFileName:    ".revgen.sum",
 	}
+
+	app.rootPath = findRootDir(app.ConfigFileName)
 
 	app.cliapp = &cli.App{
 		Name:                 "revgen",
@@ -36,6 +41,13 @@ func MakeApp(version string) *App {
 				Email: "eitan@inigolabs.com",
 			},
 		},
+		Before: func(c *cli.Context) error {
+			if c.IsSet("debug") {
+				fmt.Printf("> root_path:%v\n", *app.rootPath)
+				app.debug = true
+			}
+			return nil
+		},
 		Action: app.Generate,
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
@@ -43,12 +55,16 @@ func MakeApp(version string) *App {
 				Aliases: []string{"f"},
 				Usage:   "Force run on all generators regardless of code changes",
 			},
+			&cli.BoolFlag{
+				Name:  "debug",
+				Usage: "Print debug logs",
+			},
 		},
 		Commands: []*cli.Command{
 			{
 				Name:   "init",
 				Usage:  "Init revgen config file",
-				Action: app.Update,
+				Action: app.Init,
 			},
 			{
 				Name:   "update",
@@ -96,3 +112,25 @@ AUTHOR: {{range .Authors}}{{ . }}{{end}}
 
 VERSION: {{.Version}}
 `
+
+func findRootDir(configFileName string) *string {
+	currDir, err := os.Getwd()
+	check(err)
+	out, err := runCmd("git rev-parse --show-toplevel", &currDir)
+	check(err)
+	rootDir := strings.TrimSpace(out)
+
+	for {
+		filename := filepath.Join(currDir, configFileName)
+		if _, err := os.Stat(filename); errors.Is(err, os.ErrNotExist) {
+			currDir = filepath.Dir(currDir)
+		} else {
+			return &currDir
+		}
+
+		if currDir == rootDir || currDir == "." {
+			break
+		}
+	}
+	return nil
+}
