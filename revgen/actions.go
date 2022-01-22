@@ -108,6 +108,9 @@ func (a *App) Check(c *cli.Context) error {
 
 	sumMap := a.readSumMap(configMap)
 
+	ungeneratedCode := false
+	tamperedCode := false
+
 	var messages strings.Builder
 	for key, config := range configMap.Configs {
 		sum := sumMap[key]
@@ -116,6 +119,7 @@ func (a *App) Check(c *cli.Context) error {
 			messages.WriteString(fmt.Sprintf("%s:\n  %s\n  - error: %s\n", key.FilePath, key.GenCmd, err))
 		} else if sum.HashDeps != currGenHash {
 			messages.WriteString(fmt.Sprintf("%s:\n  %s\n  - error: %s\n", key.FilePath, key.GenCmd, "gen hash mismatch"))
+			ungeneratedCode = true
 		}
 
 		if len(config.GenFiles) > 0 {
@@ -124,13 +128,28 @@ func (a *App) Check(c *cli.Context) error {
 				messages.WriteString(fmt.Sprintf("%s:\n  %s\n  - error: %s\n", key.FilePath, key.GenCmd, err))
 			} else if sum.HashFiles != currFilesHash {
 				messages.WriteString(fmt.Sprintf("%s:\n  %s\n  - error: %s\n", key.FilePath, key.GenCmd, "file hash mismatch"))
+				tamperedCode = true
 			}
 		}
 	}
 
 	errs := messages.String()
 	if errs != "" {
-		return errors.New(errs)
+		errorPrefix := ""
+		if ungeneratedCode {
+			errorPrefix += "*******************************************\n"
+			errorPrefix += "* ungenerated code detected\n"
+			errorPrefix += "* - did you forget to run 'revgen'?\n"
+			errorPrefix += "* - did you forget to check in .revgen.yml?\n"
+			errorPrefix += "*******************************************\n"
+		}
+		if tamperedCode {
+			errorPrefix += "**************************************************\n"
+			errorPrefix += "* tampered generated code detected\n"
+			errorPrefix += "* - did you accidently edit some generated code?\n"
+			errorPrefix += "**************************************************\n"
+		}
+		return errors.New(errorPrefix + errs)
 	}
 	return nil
 }
