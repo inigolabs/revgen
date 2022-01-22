@@ -11,7 +11,8 @@ import (
 )
 
 var (
-	errMissingConfig = errors.New("no valid config file found, run 'revgen init' to create one")
+	errMissingConfig  = errors.New("no valid config file found, run 'revgen init' to create one")
+	errExistingConfig = errors.New("config file found, run 'revgen update' to update it with new go::generators")
 )
 
 // Init creates .revgen.yml config and populated it with
@@ -21,11 +22,17 @@ func (a *App) Init(c *cli.Context) error {
 	check(err)
 	a.rootPath = &cwd
 
-	fmt.Printf("initializing %s\n", a.ConfigFileName)
-	configMap := &ConfigMap{
-		Configs: make(map[Key]*GenConfig),
+	config := a.getConfig()
+	if config != nil {
+		return errExistingConfig
 	}
-	a.update(configMap)
+
+	config = &Config{
+		AutoUpdate: true,
+		Generators: make(map[Name]*GenConfig),
+	}
+	fmt.Printf("Initializing %s\n", a.ConfigFileName)
+	a.update(config)
 	return nil
 }
 
@@ -33,11 +40,11 @@ func (a *App) Init(c *cli.Context) error {
 //  Each new go:generate is added to the config file
 //  Removed go:generate lines are removed from the config file
 func (a *App) Update(c *cli.Context) error {
-	configMap := a.getConfigMap()
-	if configMap == nil {
+	config := a.getConfig()
+	if config == nil {
 		return errMissingConfig
 	}
-	a.update(configMap)
+	a.update(config)
 	return nil
 }
 
@@ -46,54 +53,60 @@ func (a *App) Update(c *cli.Context) error {
 //  if this hash is different than the stored hash, the generate
 //  command is run, and the new hash is stored in the sum file.
 func (a *App) Generate(c *cli.Context) error {
-	configMap := a.getConfigMap()
-	if configMap == nil {
+	config := a.getConfig()
+	if config == nil {
 		return errMissingConfig
 	}
 
-	if configMap.AutoUpdate {
-		a.update(configMap)
+	if config.AutoUpdate {
+		a.update(config)
 	}
 
-	sumMap := a.readSumMap(configMap)
+	status := a.getStatus()
+
 	if c.Bool("force") {
-		for _, c := range sumMap {
-			c.HashDeps = ""
+		for _, s := range status {
+			s.InputsHash = ""
 		}
 	}
 
-	for key, config := range configMap.Configs {
+	for name, config := range config.Generators {
 		runGen := false
-		sum := sumMap[key]
-		currHash, err := getHash(*a.rootPath, "gen", config.GenDeps)
+		sum := status[name]
+		currHash, err := getHash(*a.rootPath, "gen", config.Inputs)
 		if err != nil {
-			fmt.Printf("%s:\n  %s\n  - error:%s\n", key.FilePath, key.GenCmd, err)
+			fmt.Printf("error %s:%s\n", name, err)
 			runGen = true
-		} else if sum.HashDeps != currHash {
-			fmt.Printf("%s:\n  %s\n", key.FilePath, key.GenCmd)
+		} else if sum == nil || sum.InputsHash != currHash {
+			fmt.Printf("%s: %s:\n  %s\n", name, config.FilePath, config.GenCmd)
 			runGen = true
 		} else {
 			if a.debug {
-				fmt.Printf("> %s: %s: match\n", key.FilePath, key.GenCmd)
+				fmt.Printf("> %s: hash match\n", name)
 			}
 		}
 
 		if runGen {
-			path := filepath.Join(*a.rootPath, filepath.Dir(key.FilePath))
-			err = runGenCmd(key.GenCmd, path)
+			path := filepath.Join(*a.rootPath, filepath.Dir(config.FilePath))
+			err = runGenCmd(config.GenCmd, path)
 			if err != nil {
 				return err
 			}
-			sum.HashDeps = currHash
-			if len(config.GenFiles) > 0 {
-				filesHash, err := getHash(*a.rootPath, "file", config.GenFiles)
+
+			// update status hashes
+			var outputsHash string
+			if len(config.Outputs) > 0 {
+				outputsHash, err = getHash(*a.rootPath, "file", config.Outputs)
 				check(err)
-				sum.HashFiles = filesHash
+			}
+			status[name] = &SumConfig{
+				InputsHash:  currHash,
+				OutputsHash: outputsHash,
 			}
 		}
 	}
 
-	a.writeSumMap(sumMap)
+	writeYamlFile(filepath.Join(*a.rootPath, a.SumFileName), status)
 	return nil
 }
 
@@ -101,33 +114,33 @@ func (a *App) Generate(c *cli.Context) error {
 //  For each config check makes sure that the generate deps and file deps
 //  match the current files in the codebase.
 func (a *App) Check(c *cli.Context) error {
-	configMap := a.getConfigMap()
-	if configMap == nil {
+	config := a.getConfig()
+	if config == nil {
 		return errMissingConfig
 	}
 
-	sumMap := a.readSumMap(configMap)
+	status := a.getStatus()
 
 	ungeneratedCode := false
 	tamperedCode := false
 
 	var messages strings.Builder
-	for key, config := range configMap.Configs {
-		sum := sumMap[key]
-		currGenHash, err := getHash(*a.rootPath, "gen", config.GenDeps)
+	for name, config := range config.Generators {
+		sum := status[name]
+		currGenHash, err := getHash(*a.rootPath, "gen", config.Inputs)
 		if err != nil {
-			messages.WriteString(fmt.Sprintf("%s:\n  %s\n  - error: %s\n", key.FilePath, key.GenCmd, err))
-		} else if sum.HashDeps != currGenHash {
-			messages.WriteString(fmt.Sprintf("%s:\n  %s\n  - error: %s\n", key.FilePath, key.GenCmd, "gen hash mismatch"))
+			messages.WriteString(fmt.Sprintf("error: %s: %s\n", name, err))
+		} else if sum.InputsHash != currGenHash {
+			messages.WriteString(fmt.Sprintf("error: %s: %s\n", name, "gen hash mismatch"))
 			ungeneratedCode = true
 		}
 
-		if len(config.GenFiles) > 0 {
-			currFilesHash, err := getHash(*a.rootPath, "file", config.GenFiles)
+		if len(config.Outputs) > 0 {
+			currFilesHash, err := getHash(*a.rootPath, "file", config.Outputs)
 			if err != nil {
-				messages.WriteString(fmt.Sprintf("%s:\n  %s\n  - error: %s\n", key.FilePath, key.GenCmd, err))
-			} else if sum.HashFiles != currFilesHash {
-				messages.WriteString(fmt.Sprintf("%s:\n  %s\n  - error: %s\n", key.FilePath, key.GenCmd, "file hash mismatch"))
+				messages.WriteString(fmt.Sprintf("error: %s: %s\n", name, err))
+			} else if sum.OutputsHash != currFilesHash {
+				messages.WriteString(fmt.Sprintf("error: %s: %s\n", name, "file hash mismatch"))
 				tamperedCode = true
 			}
 		}
@@ -154,22 +167,46 @@ func (a *App) Check(c *cli.Context) error {
 	return nil
 }
 
-func (a *App) update(configMap *ConfigMap) {
-	gogenMap := a.getGoGenInfo()
+func (a *App) update(config *Config) {
 
-	for key, genConfig := range gogenMap.Configs {
-		if _, found := configMap.Configs[key]; !found {
-			fmt.Printf("added %s:\n  %s\n", key.FilePath, key.GenCmd)
-			configMap.Configs[key] = genConfig
+	configMap := make(map[GenInfo]Name)
+	for name, genConfig := range config.Generators {
+		info := GenInfo{
+			FilePath: genConfig.FilePath,
+			GenCmd:   genConfig.GenCmd,
+		}
+		configMap[info] = name
+	}
+
+	infoMap := make(map[GenInfo]struct{})
+
+	infoList := a.getGoGenInfo()
+	for _, info := range infoList {
+		infoMap[*info] = struct{}{}
+		if _, found := configMap[*info]; !found {
+			// new generator
+			fmt.Printf("Enter name for generator:\n")
+			fmt.Printf(" file: %s\n", info.FilePath)
+			fmt.Printf("  cmd: %s\n", info.GenCmd)
+			fmt.Print(" name: ")
+			var name string
+			if _, err := fmt.Scan(&name); err != nil {
+				check(err)
+			}
+			fmt.Println()
+			config.Generators[Name(name)] = &GenConfig{
+				FilePath: info.FilePath,
+				GenCmd:   info.GenCmd,
+			}
 		}
 	}
 
-	for key := range configMap.Configs {
-		if _, found := gogenMap.Configs[key]; !found {
-			fmt.Printf("removed %s:\n  %s\n", key.FilePath, key.GenCmd)
-			delete(configMap.Configs, key)
+	for key, name := range configMap {
+		if _, found := infoMap[key]; !found {
+			fmt.Printf("removed %s\n", name)
+			delete(config.Generators, name)
 		}
 	}
 
-	a.writeConfigMap(configMap)
+	writeYamlFile(filepath.Join(*a.rootPath, a.ConfigFileName), config)
 }

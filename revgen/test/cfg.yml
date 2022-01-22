@@ -1,10 +1,14 @@
 auto_update: false
-configs:
-    - path: gen.go
-      gen_cmd: echo a
-      gen_deps: []
-      gen_files: []
-    - path: gen.go
-      gen_cmd: echo b
-      gen_deps: []
-      gen_files: []
+generators:
+    a:
+        path: gen.go
+        gen_cmd: echo a
+        gen_dep: ""
+        inputs: []
+        outputs: []
+    b:
+        path: gen.go
+        gen_cmd: echo b
+        gen_dep: ""
+        inputs: []
+        outputs: []
