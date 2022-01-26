@@ -62,6 +62,8 @@ func (a *App) Generate(c *cli.Context) error {
 		a.update(config)
 	}
 
+	order := orderConfigs(config)
+
 	status := a.getStatus()
 
 	if c.Bool("force") {
@@ -70,15 +72,16 @@ func (a *App) Generate(c *cli.Context) error {
 		}
 	}
 
-	for name, config := range config.Generators {
+	for _, name := range order {
+		gen := config.Generators[name]
 		runGen := false
 		sum := status[name]
-		currHash, err := getHash(*a.rootPath, "gen", config.Inputs)
+		currHash, err := getHash(*a.rootPath, "gen", gen.Inputs)
 		if err != nil {
 			fmt.Printf("error %s:%s\n", name, err)
 			runGen = true
 		} else if sum == nil || sum.InputsHash != currHash {
-			fmt.Printf("%s: %s:\n  %s\n", name, config.FilePath, config.GenCmd)
+			fmt.Printf("%s: %s:\n  %s\n", name, gen.FilePath, gen.GenCmd)
 			runGen = true
 		} else {
 			if a.debug {
@@ -87,26 +90,26 @@ func (a *App) Generate(c *cli.Context) error {
 		}
 
 		if runGen {
-			path := filepath.Join(*a.rootPath, filepath.Dir(config.FilePath))
-			err = runGenCmd(config.GenCmd, path)
+			path := filepath.Join(*a.rootPath, filepath.Dir(gen.FilePath))
+			err = runGenCmd(gen.GenCmd, path)
 			if err != nil {
 				return err
 			}
 
 			// update status hashes
 			var outputsHash string
-			if len(config.Outputs) > 0 {
-				outputsHash, err = getHash(*a.rootPath, "file", config.Outputs)
+			if len(gen.Outputs) > 0 {
+				outputsHash, err = getHash(*a.rootPath, "file", gen.Outputs)
 				check(err)
 			}
 			status[name] = &SumConfig{
 				InputsHash:  currHash,
 				OutputsHash: outputsHash,
 			}
+			writeYamlFile(filepath.Join(*a.rootPath, a.SumFileName), status)
 		}
 	}
 
-	writeYamlFile(filepath.Join(*a.rootPath, a.SumFileName), status)
 	return nil
 }
 
