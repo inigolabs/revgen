@@ -121,6 +121,9 @@ func findRootDir(configFileName string) *string {
 	rootDir := strings.TrimSpace(out)
 
 	for {
+		if currDir == rootDir {
+			return &currDir
+		}
 		filename := filepath.Join(currDir, configFileName)
 		if _, err := os.Stat(filename); errors.Is(err, os.ErrNotExist) {
 			currDir = filepath.Dir(currDir)
@@ -128,7 +131,7 @@ func findRootDir(configFileName string) *string {
 			return &currDir
 		}
 
-		if currDir == rootDir || currDir == "." {
+		if currDir == "." || currDir == "/" {
 			break
 		}
 	}
