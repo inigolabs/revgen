@@ -3,11 +3,13 @@ package revgen
 import (
 	"bytes"
 	"crypto/md5"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -66,6 +68,62 @@ func getHash(rootPath string, hashType string, globs []string) (string, error) {
 	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
+// orderConfigs returns a list of config names making sure that
+//  any generator that depends on another generator comes after
+//  it in the list.
+func orderConfigs(config *Config) []Name {
+	var orderedList []Name
+	visited := make(map[Name]struct{})
+
+	keys := make([]string, len(config.Generators))
+	index := 0
+	for k := range config.Generators {
+		keys[index] = string(k)
+		index++
+	}
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		name := Name(key)
+		if _, found := visited[name]; found {
+			continue
+		}
+
+		gen := config.Generators[name]
+		if gen.GenDep == "" {
+			// if not dependancy we just -> add name to the end
+			orderedList = append(orderedList, name)
+			visited[name] = struct{}{}
+		} else {
+			// else -> add all non visited dependencies
+			localList := []Name{name}
+			depName := Name(gen.GenDep)
+			for {
+				if depName == "" {
+					break
+				}
+				if _, found := visited[depName]; found {
+					break
+				}
+
+				localList = append([]Name{depName}, localList...)
+				dep := config.Generators[depName]
+				if dep.GenDep == "" {
+					break
+				}
+				depName = dep.GenDep
+			}
+
+			for _, localName := range localList {
+				visited[localName] = struct{}{}
+			}
+			orderedList = append(orderedList, localList...)
+		}
+	}
+
+	return orderedList
+}
+
 func runCmd(cmdStr string, dir *string) (string, error) {
 	var output bytes.Buffer
 	args := strings.Split(cmdStr, " ")
@@ -110,6 +168,12 @@ func writeYamlFile(filename string, dataPtr interface{}) {
 	encoder := yaml.NewEncoder(writer)
 	err = encoder.Encode(dataPtr)
 	check(err)
+}
+
+func pretty(obj interface{}) {
+	objectString, err := json.MarshalIndent(obj, "", "  ")
+	check(err)
+	fmt.Println(string(objectString))
 }
 
 func check(err error) {
