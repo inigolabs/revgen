@@ -44,7 +44,7 @@ Run **revgen** anywhere inside your go workspace to call all the generators for 
 ```shell
 > revgen --force
 ```
-Run **revgen --force** to run all the genrators regardless of code updates. 
+Run **revgen --force** to run all the generators regardless of code updates. 
 ***
 ```shell
 > revgen update
