@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/urfave/cli/v2"
 )
@@ -116,21 +115,11 @@ VERSION: {{.Version}}
 func findRootDir(configFileName string) *string {
 	currDir, err := os.Getwd()
 	check(err)
-	out, err := runCmd("git rev-parse --show-toplevel", &currDir)
+	_, err = runCmd("git rev-parse --show-toplevel", &currDir)
 	check(err)
-	rootDir := strings.TrimSpace(out)
-
-	for {
-		filename := filepath.Join(currDir, configFileName)
-		if _, err := os.Stat(filename); errors.Is(err, os.ErrNotExist) {
-			currDir = filepath.Dir(currDir)
-		} else {
-			return &currDir
-		}
-
-		if currDir == rootDir || currDir == "." {
-			break
-		}
+	filename := filepath.Join(currDir, configFileName)
+	if _, err := os.Stat(filename); errors.Is(err, os.ErrNotExist) {
+		currDir = filepath.Dir(currDir)
 	}
-	return nil
+	return &currDir
 }
