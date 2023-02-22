@@ -16,7 +16,8 @@ var (
 )
 
 // Init creates .revgen.yml config and populated it with
-//  all the go:generate commands found in the codebase
+//
+//	all the go:generate commands found in the codebase
 func (a *App) Init(c *cli.Context) error {
 	cwd, err := os.Getwd()
 	check(err)
@@ -37,8 +38,9 @@ func (a *App) Init(c *cli.Context) error {
 }
 
 // Update walks the codebase looking for go:generate lines
-//  Each new go:generate is added to the config file
-//  Removed go:generate lines are removed from the config file
+//
+//	Each new go:generate is added to the config file
+//	Removed go:generate lines are removed from the config file
 func (a *App) Update(c *cli.Context) error {
 	config := a.getConfig()
 	if config == nil {
@@ -49,9 +51,10 @@ func (a *App) Update(c *cli.Context) error {
 }
 
 // Generate goes through all the configured go:generate commands.
-//  For each command, a new hash is computed from the gen deps,
-//  if this hash is different than the stored hash, the generate
-//  command is run, and the new hash is stored in the sum file.
+//
+//	For each command, a new hash is computed from the gen deps,
+//	if this hash is different than the stored hash, the generate
+//	command is run, and the new hash is stored in the sum file.
 func (a *App) Generate(c *cli.Context) error {
 	config := a.getConfig()
 	if config == nil {
@@ -64,7 +67,15 @@ func (a *App) Generate(c *cli.Context) error {
 
 	order := orderConfigs(config)
 
-	status := a.getStatus()
+	status, err := a.getStatus()
+	if err != nil {
+		fmt.Printf("corrupt sum file\n")
+		if c.Bool("force") {
+			status = Status{}
+		} else {
+			return err
+		}
+	}
 
 	if c.Bool("force") {
 		for _, s := range status {
@@ -114,15 +125,19 @@ func (a *App) Generate(c *cli.Context) error {
 }
 
 // Check runs through all the genreate commands in the .revgen.yml config.
-//  For each config check makes sure that the generate deps and file deps
-//  match the current files in the codebase.
+//
+//	For each config check makes sure that the generate deps and file deps
+//	match the current files in the codebase.
 func (a *App) Check(c *cli.Context) error {
 	config := a.getConfig()
 	if config == nil {
 		return errMissingConfig
 	}
 
-	status := a.getStatus()
+	status, err := a.getStatus()
+	if err != nil {
+		return err
+	}
 
 	ungeneratedCode := false
 	tamperedCode := false
