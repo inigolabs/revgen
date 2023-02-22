@@ -69,8 +69,9 @@ func getHash(rootPath string, hashType string, globs []string) (string, error) {
 }
 
 // orderConfigs returns a list of config names making sure that
-//  any generator that depends on another generator comes after
-//  it in the list.
+//
+//	any generator that depends on another generator comes after
+//	it in the list.
 func orderConfigs(config *Config) []Name {
 	var orderedList []Name
 	visited := make(map[Name]struct{})
